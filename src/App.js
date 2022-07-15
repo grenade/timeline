@@ -25,29 +25,39 @@ const flag = (countryCode) => (
 const App = () => {
   const [timeline, setTimeline] = useState(undefined);
   useEffect(() => {
-    fetch(`https://gist.githubusercontent.com/grenade/c80d872e98b8b38401c92cc468b91003/raw/timeline.json`)
+    fetch('https://api.github.com/gists/0cb19dd2aaa3365c6e47e1fc478529f8')
       .then(response => response.json())
-      .then((timeline) => {
-        setTimeline(
-          timeline
-            .filter((x) => ['home', 'work'].includes(x.type) && ((x.to === 'present') || (dateDiff(new Date(x.from), new Date(x.to), 'day') > 31)))
-            .sort((a, b) => (a.from > b.from) ? 1 : (a.from < b.from) ? -1 : 0)
-            .reduce((a, x) => {
-              if ((!!a.length) && (a[a.length - 1].town === x.town)) {
-                const l = a.pop();
-                return [...a, ...[{
+      .then(gist => {
+        fetch(`https://gist.githubusercontent.com/grenade/c80d872e98b8b38401c92cc468b91003/raw/timeline.json`)
+          .then(response => response.json())
+          .then((timeline) => {
+            setTimeline(
+              timeline
+                .filter((x) => ['home', 'work'].includes(x.type) && ((x.to === 'present') || (dateDiff(new Date(x.from), new Date(x.to), 'day') > 31)))
+                .sort((a, b) => (a.from > b.from) ? 1 : (a.from < b.from) ? -1 : 0)
+                .reduce((a, x) => {
+                  if ((!!a.length) && (a[a.length - 1].town === x.town)) {
+                    const l = a.pop();
+                    return [...a, ...[{
+                      ...x,
+                      from: l.from,
+                    }]];
+                  } else {
+                    return [...a, ...[x]];
+                  }
+                }, [])
+                .map((x) => ({
                   ...x,
-                  from: l.from,
-                }]];
-              } else {
-                return [...a, ...[x]];
-              }
-            }, [])
-            //.reverse()
-        );
-      })
-      .catch((error) => {
-        console.error(error);
+                  evidence: Object.keys(gist.files).filter(f => {
+                    const d = f.split('-')[0];
+                    return ((d !== '00') && (d > x.from.replace('-', '')) && (d < x.to.replace('-', '')))
+                  })
+                }))
+            );
+          })
+          .catch((error) => {
+            console.error(error);
+          });
       });
   }, []);
   return (
@@ -63,6 +73,7 @@ const App = () => {
                   <tr>
                     <th>date</th>
                     <th>location</th>
+                    <th>evidence</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -74,6 +85,23 @@ const App = () => {
                         </td>
                         <td>
                           {`${flag(x.country.code)} ${x.town.toLowerCase()}, ${x.country.name.toLowerCase().replace('united kingdom', 'uk')}`}
+                        </td>
+                        <td>
+                          {
+                            (!!x.evidence && !!x.evidence.length)
+                              ? (
+                                  <ul>
+                                    {
+                                      x.evidence.map((e, eI) => (
+                                        <li key={eI}>
+                                          <a href={`https://gist.github.com/grenade/0cb19dd2aaa3365c6e47e1fc478529f8/raw/${e}`}>{e}</a>
+                                        </li>
+                                      ))
+                                    }
+                                  </ul>
+                                )
+                              : null
+                          }
                         </td>
                       </tr>
                     ))
